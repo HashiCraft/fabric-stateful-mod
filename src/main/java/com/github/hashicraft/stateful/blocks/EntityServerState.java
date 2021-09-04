@@ -17,7 +17,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.RegistryKey;
 
 public class EntityServerState {
-  public static Boolean registered;
+  public static boolean registered = false;
 
   public static void RegisterStateUpdates() {
     if (registered) {
