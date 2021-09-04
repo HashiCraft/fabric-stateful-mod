@@ -97,10 +97,11 @@ public class MyBlockEntity extends StatefulBlockEntity {
   @Syncable(property = "powered", type = BooleanProperty.class)
   public boolean powered = false;
 
-  public WasmBlockEntity(BlockPos pos, BlockState state) {
-    super(WasmcraftMod.WASM_BLOCK_ENTITY, pos, state, null);
+  public MyBlockEntity(BlockPos pos, BlockState state) {
+    super(MyMod.MY_BLOCK_ENTITY, pos, state, null);
   }
 
+  // Add a constructor that takes the reference to the parent block.
   public MyBlockEntity(BlockPos pos, BlockState state, Block parent) {
     super(MyMod.MY_BLOCK_ENTITY, pos, state, parent);
   }
