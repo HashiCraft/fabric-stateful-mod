@@ -16,7 +16,7 @@ import net.minecraft.world.World;
 
 public class StatefulBlockEntity extends BlockEntity implements BlockEntityClientSerializable {
 
-  private EntityStateData serverState = new EntityStateData();
+  public EntityStateData serverState = new EntityStateData();
   private boolean isDirty;
   private Block parent;
 
@@ -55,10 +55,15 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
 
           // Hashmaps when serialzed from JSON will store the value as double,
           // to set this to the field it must be cast back into its original type
-          if (Integer.class.isAssignableFrom(field.getType())) {
+          Class<?> fieldType = field.getType();
+          if (fieldType.getName() == "int" || Integer.class.isAssignableFrom(fieldType)) {
             value = Integer.valueOf(((Number) value).intValue());
-          } else if (Double.class.isAssignableFrom(field.getType())) {
+          } else if (fieldType.getName() == "double" || Double.class.isAssignableFrom(fieldType)) {
             value = Double.valueOf(((Number) value).doubleValue());
+          } else if (fieldType.getName() == "float" || Float.class.isAssignableFrom(fieldType)) {
+            value = Float.valueOf(((Number) value).floatValue());
+          } else if (fieldType.getName() == "long" || Long.class.isAssignableFrom(fieldType)) {
+            value = Long.valueOf(((Number) value).longValue());
           } // other cases as needed (Long, Float, ...)
 
           field.set(this, value);
