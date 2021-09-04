@@ -1,3 +1,4 @@
 before_install:
   - source ./install_jdk.sh --feature 16 --license GPL
+  - ./gradlew downloadAssets
   - ./gradlew genSources
