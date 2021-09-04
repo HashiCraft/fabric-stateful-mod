@@ -107,11 +107,10 @@ public class MyBlockEntity extends StatefulBlockEntity {
 }
 ```
 
-```java
 To enable synchonisation from the client to the server your mod needs to initialize this mod. You can do this by
 adding the following line to your mods `onIniitialize` method.
 
-```
+```java
   @Override
   public void onInitialize() {
     EntityServerState.RegisterStateUpdates();
