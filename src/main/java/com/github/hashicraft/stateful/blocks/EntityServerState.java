@@ -20,6 +20,10 @@ public class EntityServerState {
   public static Boolean registered;
 
   public static void RegisterStateUpdates() {
+    if (registered) {
+      return;
+    }
+
     ServerPlayNetworking.registerGlobalReceiver(Messages.ENTITY_STATE_UPDATED,
         (MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
             PacketSender responseSender) -> {
@@ -93,6 +97,10 @@ public class EntityServerState {
               }
             }
           });
+
+          // set the registered state to ensure only one insance of this method is
+          // registered
+          EntityServerState.registered = true;
         });
   }
 }
