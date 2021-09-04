@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "stateful",
+  "version": "${version}",
+
+  "name": "Fabric mod allowing automatic syncing of client state and properties.",
+  "description": "This is an example description! Tell everyone what your mod is about!",
+  "authors": [
+    "Me!"
+  ],
+  "contact": {
+    "homepage": "https://github.com/hashicraft",
+    "sources": "https://github.com/hashicraft/fabric-stateful-mod"
+  },
+
+  "license": "CC0-1.0",
+  "icon": "assets/stateful/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.github.nicholasjackson.wasmcraft.WasmcraftMod"
+    ],
+    "client": [
+      "com.github.nicholasjackson.wasmcraft.WasmcraftModClient"
+    ]
+  },
+  "mixins": [
+    "modid.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.11.3",
+    "fabric": "*",
+    "minecraft": "1.17.x",
+    "java": ">=16"
+  },
+
+  "custom": {
+		"modmenu": {
+			"badges": [ "library" ]
+		}
+	}
+}
