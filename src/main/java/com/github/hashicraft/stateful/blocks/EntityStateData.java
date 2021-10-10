@@ -1,5 +1,6 @@
 package com.github.hashicraft.stateful.blocks;
 
+import java.math.BigInteger;
 import java.util.Hashtable;
 
 import com.google.gson.Gson;
@@ -44,7 +45,10 @@ public class EntityStateData implements java.io.Serializable {
   }
 
   public byte[] toBytes() {
-    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
+    gsonBuilder.registerTypeAdapter(BigInteger.class, new BigIntegerTypeAdapter());
+
+    Gson gson = gsonBuilder.create();
     String json = gson.toJson(this);
     return json.getBytes();
   }
