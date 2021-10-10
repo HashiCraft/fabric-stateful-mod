@@ -1,11 +1,9 @@
 package com.github.hashicraft.stateful.blocks;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StatefulBlockEntityTests {
 
@@ -37,5 +35,7 @@ class StatefulBlockEntityTests {
     assertEquals(8.3f, newEntity.FloatValue);
     assertEquals(7L, newEntity.longValue);
     assertEquals(3L, newEntity.LongValue);
+    assertEquals("mytype", newEntity.ClassType.stringType);
+    assertEquals("mytype2", newEntity.ClassType.classValue.stringType);
   }
 }

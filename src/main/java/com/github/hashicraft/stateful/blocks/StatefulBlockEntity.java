@@ -2,6 +2,9 @@ package com.github.hashicraft.stateful.blocks;
 
 import java.lang.reflect.Field;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import net.fabricmc.fabric.api.block.entity.BlockEntityClientSerializable;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -56,17 +59,12 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
           // Hashmaps when serialzed from JSON will store the value as double,
           // to set this to the field it must be cast back into its original type
           Class<?> fieldType = field.getType();
-          if (fieldType.getName() == "int" || Integer.class.isAssignableFrom(fieldType)) {
-            value = Integer.valueOf(((Number) value).intValue());
-          } else if (fieldType.getName() == "double" || Double.class.isAssignableFrom(fieldType)) {
-            value = Double.valueOf(((Number) value).doubleValue());
-          } else if (fieldType.getName() == "float" || Float.class.isAssignableFrom(fieldType)) {
-            value = Float.valueOf(((Number) value).floatValue());
-          } else if (fieldType.getName() == "long" || Long.class.isAssignableFrom(fieldType)) {
-            value = Long.valueOf(((Number) value).longValue());
-          } // other cases as needed (Long, Float, ...)
+          Gson gson = new Gson();
+          String json = gson.toJson(value);
+          value = gson.fromJson(json, fieldType);
 
           field.set(this, value);
+
         } catch (IllegalArgumentException e) {
           e.printStackTrace();
         } catch (IllegalAccessException e) {

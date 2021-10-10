@@ -30,6 +30,9 @@ public class TestBlockEntity extends StatefulBlockEntity {
   @Syncable
   public Long LongValue = 3L;
 
+  @Syncable
+  public MyType ClassType = new MyType();
+
   public TestBlockEntity() {
     super(TEST_BLOCK_ENTITY, new BlockPos(1, 2, 3), null, null);
   }
