@@ -1,8 +1,10 @@
 package com.github.hashicraft.stateful.blocks;
 
 import java.lang.reflect.Field;
+import java.math.BigInteger;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import net.fabricmc.fabric.api.block.entity.BlockEntityClientSerializable;
@@ -59,7 +61,11 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
           // Hashmaps when serialzed from JSON will store the value as double,
           // to set this to the field it must be cast back into its original type
           Class<?> fieldType = field.getType();
-          Gson gson = new Gson();
+
+          GsonBuilder gsonBuilder = new GsonBuilder();
+          gsonBuilder.registerTypeAdapter(BigInteger.class, new BigIntegerTypeAdapter());
+
+          Gson gson = gsonBuilder.create();
           String json = gson.toJson(value);
           value = gson.fromJson(json, fieldType);
 
@@ -72,6 +78,7 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
         }
       }
     }
+
   }
 
   public void setPropertiesToState() {

@@ -1,5 +1,7 @@
 package com.github.hashicraft.stateful.blocks;
 
+import java.math.BigInteger;
+
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.util.math.BlockPos;
 
@@ -32,6 +34,9 @@ public class TestBlockEntity extends StatefulBlockEntity {
 
   @Syncable
   public MyType ClassType = new MyType();
+
+  @Syncable
+  public BigInteger BigIntegerValue = new BigInteger("7");
 
   public TestBlockEntity() {
     super(TEST_BLOCK_ENTITY, new BlockPos(1, 2, 3), null, null);

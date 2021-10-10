@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.math.BigInteger;
+
 class StatefulBlockEntityTests {
 
   @BeforeEach
@@ -35,7 +37,9 @@ class StatefulBlockEntityTests {
     assertEquals(8.3f, newEntity.FloatValue);
     assertEquals(7L, newEntity.longValue);
     assertEquals(3L, newEntity.LongValue);
+    assertEquals(new BigInteger("7"), newEntity.BigIntegerValue);
     assertEquals("mytype", newEntity.ClassType.stringType);
+    assertEquals(new BigInteger("2"), newEntity.ClassType.bigIntegerValue);
     assertEquals("mytype2", newEntity.ClassType.classValue.stringType);
   }
 }
