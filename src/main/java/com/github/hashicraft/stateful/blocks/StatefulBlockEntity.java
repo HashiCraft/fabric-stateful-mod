@@ -5,9 +5,7 @@ import java.math.BigInteger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 
-import net.fabricmc.fabric.api.block.entity.BlockEntityClientSerializable;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.block.Block;
@@ -15,11 +13,14 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.Packet;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
-public class StatefulBlockEntity extends BlockEntity implements BlockEntityClientSerializable {
+public class StatefulBlockEntity extends BlockEntity {
 
   public EntityStateData serverState = new EntityStateData();
   private boolean isDirty;
@@ -43,6 +44,10 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
 
   public void markForUpdate() {
     this.isDirty = true;
+  }
+
+  public void sync() {
+    this.getWorld().updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), Block.NOTIFY_ALL);
   }
 
   // sets the class properies marked with @Syncable from the state
@@ -129,35 +134,35 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
     ClientPlayNetworking.send(Messages.ENTITY_STATE_UPDATED, buf);
   }
 
+  // New vanilla method for client side syncing of data
+  @Override
+  public Packet<ClientPlayPacketListener> toUpdatePacket() {
+    return BlockEntityUpdateS2CPacket.create(this, be -> be.createNbt());
+  }
+
+  @Override
+  public NbtCompound toInitialChunkDataNbt() {
+    NbtCompound nbt = super.toInitialChunkDataNbt();
+    toClientTag(nbt);
+
+    return nbt;
+  }
+
   // Deserialize the BlockEntity
   @Override
   public void readNbt(NbtCompound tag) {
     super.readNbt(tag);
-
-    EntityStateData nbtState = EntityStateData.fromBytes(tag.getByteArray("serverState"));
-    if (nbtState != null && nbtState.data != null) {
-      this.serverState = nbtState;
-      this.getPropertiesFromState();
-    }
+    fromClientTag(tag);
   }
 
   // Serialize the BlockEntity
   @Override
-  public NbtCompound writeNbt(NbtCompound tag) {
+  public void writeNbt(NbtCompound tag) {
     super.writeNbt(tag);
-
-    if (this.serverState != null) {
-      setPropertiesToState();
-      tag.putByteArray("serverState", this.serverState.toBytes());
-    }
-
-    return tag;
+    toClientTag(tag);
   }
 
-  @Override
   public void fromClientTag(NbtCompound tag) {
-    super.readNbt(tag);
-
     EntityStateData nbtState = EntityStateData.fromBytes(tag.getByteArray("serverState"));
     if (nbtState != null && nbtState.data != null) {
       this.serverState = nbtState;
@@ -165,10 +170,7 @@ public class StatefulBlockEntity extends BlockEntity implements BlockEntityClien
     }
   }
 
-  @Override
   public NbtCompound toClientTag(NbtCompound tag) {
-    super.writeNbt(tag);
-
     if (this.serverState != null) {
       setPropertiesToState();
       tag.putByteArray("serverState", this.serverState.toBytes());
