@@ -6,9 +6,8 @@ import java.util.Hashtable;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
-
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.registry.RegistryKey;
 
 public class EntityStateData implements java.io.Serializable {
   public Hashtable<String, Object> data = new Hashtable<String, Object>();
