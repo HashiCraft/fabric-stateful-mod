@@ -3,24 +3,29 @@ package com.github.hashicraft.stateful.blocks;
 import java.lang.reflect.Field;
 import java.math.BigInteger;
 
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class StatefulBlockEntity extends BlockEntity {
+  public static final Logger LOGGER = LoggerFactory.getLogger("stateful");
+
 
   public EntityStateData serverState = new EntityStateData();
   private boolean isDirty;
@@ -31,6 +36,7 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   public static void tick(World world, BlockPos pos, BlockState state, StatefulBlockEntity be) {
+    LOGGER.info("Ticking block entity");
     if (be.isDirty) {
       be.syncWithServer();
       be.isDirty = false;
@@ -43,6 +49,7 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   public void markForUpdate() {
+    LOGGER.info("Marking for update");
     this.isDirty = true;
   }
 
@@ -122,43 +129,44 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   private void syncWithServer() {
+    LOGGER.info("Sending state update to server");
+
     setPropertiesToState();
 
     // send the data to the sever so that it can be written to other players
     this.serverState.setBlockPos(this.getPos());
     this.serverState.setRegistryKey(this.world.getRegistryKey());
 
-    PacketByteBuf buf = PacketByteBufs.create();
-    buf.writeByteArray(this.serverState.toBytes());
+    EntityStatePacket buf = new EntityStatePacket(this.serverState.toBytes());
 
-    ClientPlayNetworking.send(Messages.ENTITY_STATE_UPDATED, buf);
+    ClientPlayNetworking.send(buf);
   }
 
-  // New vanilla method for client side syncing of data
+  @Nullable
   @Override
   public Packet<ClientPlayPacketListener> toUpdatePacket() {
-    return BlockEntityUpdateS2CPacket.create(this, be -> be.createNbt());
+    return BlockEntityUpdateS2CPacket.create(this);
   }
 
   @Override
-  public NbtCompound toInitialChunkDataNbt() {
-    NbtCompound nbt = super.toInitialChunkDataNbt();
-    toClientTag(nbt);
+  public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registryLookup) {
+    NbtCompound nbt = createNbt(registryLookup);
 
+    toClientTag(nbt);
     return nbt;
   }
 
   // Deserialize the BlockEntity
   @Override
-  public void readNbt(NbtCompound tag) {
-    super.readNbt(tag);
+  public void readNbt(NbtCompound tag, RegistryWrapper.WrapperLookup wrapper) {
+    super.readNbt(tag, wrapper);
     fromClientTag(tag);
   }
 
   // Serialize the BlockEntity
   @Override
-  public void writeNbt(NbtCompound tag) {
-    super.writeNbt(tag);
+  public void writeNbt(NbtCompound tag, RegistryWrapper.WrapperLookup wrapper) {
+    super.writeNbt(tag, wrapper);
     toClientTag(tag);
   }
 
