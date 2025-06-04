@@ -2,6 +2,7 @@ package com.github.hashicraft.stateful.blocks;
 
 import java.lang.reflect.Field;
 import java.math.BigInteger;
+import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -25,7 +26,6 @@ import net.minecraft.world.World;
 
 public class StatefulBlockEntity extends BlockEntity {
   public static final Logger LOGGER = LoggerFactory.getLogger("stateful");
-
 
   public EntityStateData serverState = new EntityStateData();
   private boolean isDirty;
@@ -170,7 +170,12 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   public void fromClientTag(NbtCompound tag) {
-    EntityStateData nbtState = EntityStateData.fromBytes(tag.getByteArray("serverState"));
+    Optional<byte[]> stateBytes = tag.getByteArray("serverState");
+    if (!stateBytes.isPresent()) {
+      return;
+    }
+
+    EntityStateData nbtState = EntityStateData.fromBytes(stateBytes.get());
     if (nbtState != null && nbtState.data != null) {
       this.serverState = nbtState;
       this.getPropertiesFromState();
