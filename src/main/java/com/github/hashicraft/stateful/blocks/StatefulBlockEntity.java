@@ -36,7 +36,6 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   public static void tick(World world, BlockPos pos, BlockState state, StatefulBlockEntity be) {
-    LOGGER.info("Ticking block entity");
     if (be.isDirty) {
       be.syncWithServer();
       be.isDirty = false;
