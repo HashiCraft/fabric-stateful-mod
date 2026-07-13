@@ -1,28 +1,24 @@
 package com.github.hashicraft.stateful.blocks;
 
-import java.lang.reflect.Field;
-import java.math.BigInteger;
-import java.util.Optional;
-
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.listener.ClientPlayPacketListener;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.util.ExtraCodecs;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 public class StatefulBlockEntity extends BlockEntity {
   public static final Logger LOGGER = LoggerFactory.getLogger("stateful");
@@ -35,7 +31,7 @@ public class StatefulBlockEntity extends BlockEntity {
     return parent;
   }
 
-  public static void tick(World world, BlockPos pos, BlockState state, StatefulBlockEntity be) {
+  public static void tick(Level world, BlockPos pos, BlockState state, StatefulBlockEntity be) {
     if (be.isDirty) {
       be.syncWithServer();
       be.isDirty = false;
@@ -53,61 +49,17 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   public void sync() {
-    this.getWorld().updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), Block.NOTIFY_ALL);
+    this.getLevel().sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(),
+        Block.UPDATE_ALL);
   }
 
   // sets the class properies marked with @Syncable from the state
   public void getPropertiesFromState() {
-    Class<?> clazz = this.getClass();
-    for (Field field : clazz.getDeclaredFields()) {
-      field.setAccessible(true);
-      if (field.isAnnotationPresent(Syncable.class)) {
-        try {
-          if (this.serverState == null || this.serverState.data == null) {
-            return;
-          }
-
-          Object value = serverState.data.get(field.getName());
-
-          // Hashmaps when serialzed from JSON will store the value as double,
-          // to set this to the field it must be cast back into its original type
-          Class<?> fieldType = field.getType();
-
-          GsonBuilder gsonBuilder = new GsonBuilder();
-          gsonBuilder.registerTypeAdapter(BigInteger.class, new BigIntegerTypeAdapter());
-
-          Gson gson = gsonBuilder.create();
-          String json = gson.toJson(value);
-          value = gson.fromJson(json, fieldType);
-
-          field.set(this, value);
-
-        } catch (IllegalArgumentException e) {
-          e.printStackTrace();
-        } catch (IllegalAccessException e) {
-          e.printStackTrace();
-        }
-      }
-    }
-
+    SyncableFields.applyStateToFields(this, this.serverState);
   }
 
   public void setPropertiesToState() {
-    Class<?> clazz = this.getClass();
-    for (Field field : clazz.getDeclaredFields()) {
-      field.setAccessible(true);
-      if (field.isAnnotationPresent(Syncable.class)) {
-        try {
-          if (field.get(this) != null) {
-            this.serverState.data.put(field.getName(), field.get(this));
-          }
-        } catch (IllegalArgumentException e) {
-          e.printStackTrace();
-        } catch (IllegalAccessException e) {
-          e.printStackTrace();
-        }
-      }
-    }
+    SyncableFields.collectFieldsToState(this, this.serverState);
   }
 
   // stateStateUpdate is called by the server whenever the entity retrieves new
@@ -123,7 +75,7 @@ public class StatefulBlockEntity extends BlockEntity {
     this.serverState = data;
     getPropertiesFromState();
 
-    this.markDirty();
+    this.setChanged();
     this.sync();
   }
 
@@ -133,8 +85,8 @@ public class StatefulBlockEntity extends BlockEntity {
     setPropertiesToState();
 
     // send the data to the sever so that it can be written to other players
-    this.serverState.setBlockPos(this.getPos());
-    this.serverState.setRegistryKey(this.world.getRegistryKey());
+    this.serverState.setBlockPos(this.getBlockPos());
+    this.serverState.setRegistryKey(this.level.dimension());
 
     EntityStatePacket buf = new EntityStatePacket(this.serverState.toBytes());
 
@@ -143,51 +95,58 @@ public class StatefulBlockEntity extends BlockEntity {
 
   @Nullable
   @Override
-  public Packet<ClientPlayPacketListener> toUpdatePacket() {
-    return BlockEntityUpdateS2CPacket.create(this);
+  public Packet<ClientGamePacketListener> getUpdatePacket() {
+    return ClientboundBlockEntityDataPacket.create(this);
   }
 
   @Override
-  public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registryLookup) {
-    NbtCompound nbt = createNbt(registryLookup);
+  public CompoundTag getUpdateTag(HolderLookup.Provider registryLookup) {
+    CompoundTag nbt = saveCustomOnly(registryLookup);
 
     toClientTag(nbt);
     return nbt;
   }
 
-  // Deserialize the BlockEntity
+  // Deserialize the BlockEntity from disk.
+  //
+  // ValueInput has no byte array accessor (int[] is its only array type), so the state is stored
+  // via ExtraCodecs.BASE64_STRING rather than the putByteArray/getByteArray pair the network path
+  // still uses.
   @Override
-  public void readNbt(NbtCompound tag, RegistryWrapper.WrapperLookup wrapper) {
-    super.readNbt(tag, wrapper);
-    fromClientTag(tag);
+  protected void loadAdditional(ValueInput input) {
+    super.loadAdditional(input);
+    input.read("serverState", ExtraCodecs.BASE64_STRING).ifPresent(this::applyStateBytes);
   }
 
-  // Serialize the BlockEntity
+  // Serialize the BlockEntity to disk
   @Override
-  public void writeNbt(NbtCompound tag, RegistryWrapper.WrapperLookup wrapper) {
-    super.writeNbt(tag, wrapper);
-    toClientTag(tag);
-  }
+  protected void saveAdditional(ValueOutput output) {
+    super.saveAdditional(output);
 
-  public void fromClientTag(NbtCompound tag) {
-    Optional<byte[]> stateBytes = tag.getByteArray("serverState");
-    if (!stateBytes.isPresent()) {
-      return;
-    }
-
-    EntityStateData nbtState = EntityStateData.fromBytes(stateBytes.get());
-    if (nbtState != null && nbtState.data != null) {
-      this.serverState = nbtState;
-      this.getPropertiesFromState();
+    if (this.serverState != null) {
+      setPropertiesToState();
+      output.store("serverState", ExtraCodecs.BASE64_STRING, this.serverState.toBytes());
     }
   }
 
-  public NbtCompound toClientTag(NbtCompound tag) {
+  public void fromClientTag(CompoundTag tag) {
+    tag.getByteArray("serverState").ifPresent(this::applyStateBytes);
+  }
+
+  public CompoundTag toClientTag(CompoundTag tag) {
     if (this.serverState != null) {
       setPropertiesToState();
       tag.putByteArray("serverState", this.serverState.toBytes());
     }
 
     return tag;
+  }
+
+  private void applyStateBytes(byte[] stateBytes) {
+    EntityStateData nbtState = EntityStateData.fromBytes(stateBytes);
+    if (nbtState != null && nbtState.data != null) {
+      this.serverState = nbtState;
+      this.getPropertiesFromState();
+    }
   }
 }

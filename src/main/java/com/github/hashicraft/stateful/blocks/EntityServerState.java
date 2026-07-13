@@ -7,14 +7,16 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.block.BlockState;
-import net.minecraft.registry.RegistryKey;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.state.property.IntProperty;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 
 public class EntityServerState {
   public static boolean registered = false;
@@ -26,13 +28,13 @@ public class EntityServerState {
       return;
     }
 
-    PayloadTypeRegistry.playC2S().register(EntityStatePacket.PACKET_ID, EntityStatePacket.PACKET_CODEC);
+    PayloadTypeRegistry.serverboundPlay().register(EntityStatePacket.PACKET_ID, EntityStatePacket.PACKET_CODEC);
 
     ServerPlayNetworking.registerGlobalReceiver(EntityStatePacket.PACKET_ID, (payload, context) -> {
       LOGGER.info("Received state update from client");
 
       EntityStateData state = EntityStateData.fromBytes(payload.data());
-      MinecraftServer server = context.player().getServer();
+      MinecraftServer server = context.player().level().getServer();
 
       server.execute(() -> {
         if (state == null) {
@@ -42,12 +44,12 @@ public class EntityServerState {
 
         BlockPos pos = new BlockPos(state.x, state.y, state.z);
 
-        Iterable<ServerWorld> worlds = server.getWorlds();
-        for (ServerWorld world : worlds) {
-          Identifier id = Identifier.of(state.world);
-          RegistryKey key = world.getRegistryKey();
+        Iterable<ServerLevel> worlds = server.getAllLevels();
+        for (ServerLevel world : worlds) {
+          Identifier id = Identifier.parse(state.world);
+          ResourceKey<Level> key = world.dimension();
 
-          if (key.getValue().equals(id)) {
+          if (key.identifier().equals(id)) {
             StatefulBlockEntity be = (StatefulBlockEntity) world.getBlockEntity(pos);
 
             if (be == null) {
@@ -58,29 +60,30 @@ public class EntityServerState {
             be.serverStateUpdated(state);
 
             // update any client state properties
-            BlockState blockState = be.getCachedState();
+            BlockState blockState = be.getBlockState();
             boolean blockStateChanged = false;
 
             for (Field field : be.getClass().getDeclaredFields()) {
               if (field.isAnnotationPresent(Syncable.class)) {
                 Syncable annotation = field.getAnnotation(Syncable.class);
-                if (annotation.property() == "") {
+                if (annotation.property().isEmpty()) {
                   continue;
                 }
 
                 try {
                   if (annotation.type() == BooleanProperty.class) {
-                    BooleanProperty prop = BooleanProperty.of(annotation.property());
+                    BooleanProperty prop = BooleanProperty.create(annotation.property());
                     boolean value = (boolean) field.get(be);
 
                     blockStateChanged = true;
-                    blockState = blockState.with(prop, value);
-                  } else if (annotation.type() == IntProperty.class) {
-                    IntProperty prop = IntProperty.of(annotation.property(), Integer.MIN_VALUE, Integer.MAX_VALUE);
+                    blockState = blockState.setValue(prop, value);
+                  } else if (annotation.type() == IntegerProperty.class) {
+                    IntegerProperty prop = IntegerProperty.create(annotation.property(), Integer.MIN_VALUE,
+                        Integer.MAX_VALUE);
                     int value = (int) field.get(be);
 
                     blockStateChanged = true;
-                    blockState = blockState.with(prop, value);
+                    blockState = blockState.setValue(prop, value);
                   }
 
                 } catch (IllegalArgumentException e) {
@@ -92,11 +95,11 @@ public class EntityServerState {
             }
 
             if (blockStateChanged) {
-              world.setBlockState(pos, blockState);
+              world.setBlock(pos, blockState, Block.UPDATE_ALL);
             }
 
             // update the neighbors
-            world.updateNeighbors(pos, be.getParent());
+            world.updateNeighborsAt(pos, be.getParent());
           }
         }
       });

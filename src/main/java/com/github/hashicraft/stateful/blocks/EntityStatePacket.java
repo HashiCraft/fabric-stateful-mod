@@ -1,22 +1,19 @@
 package com.github.hashicraft.stateful.blocks;
 
-import java.nio.ByteBuffer;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Uuids;
+public record EntityStatePacket(byte[] data) implements CustomPacketPayload {
 
-public record EntityStatePacket(byte[] data) implements CustomPayload {
-
-  public static final CustomPayload.Id<EntityStatePacket> PACKET_ID = new CustomPayload.Id<>(
+  public static final CustomPacketPayload.Type<EntityStatePacket> PACKET_ID = new CustomPacketPayload.Type<>(
       Messages.ENTITY_STATE_UPDATED);
-  public static final PacketCodec<RegistryByteBuf, EntityStatePacket> PACKET_CODEC = PacketCodecs.BYTE_ARRAY
-      .xmap(EntityStatePacket::new, EntityStatePacket::data).cast();
+  public static final StreamCodec<RegistryFriendlyByteBuf, EntityStatePacket> PACKET_CODEC = ByteBufCodecs.BYTE_ARRAY
+      .map(EntityStatePacket::new, EntityStatePacket::data).cast();
 
   @Override
-  public Id<? extends CustomPayload> getId() {
+  public Type<? extends CustomPacketPayload> type() {
     return EntityStatePacket.PACKET_ID;
   }
 }

@@ -2,11 +2,12 @@ package com.github.hashicraft.stateful.blocks;
 
 import java.math.BigInteger;
 
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.util.math.BlockPos;
-
-public class TestBlockEntity extends StatefulBlockEntity {
-  public static BlockEntityType<TestBlockEntity> TEST_BLOCK_ENTITY;
+// Mirrors the @Syncable fields of a real stateful block entity without extending
+// StatefulBlockEntity: since MC 26.2, constructing a BlockEntity validates its BlockEntityType
+// against the registry, which cannot be built outside a bootstrapped game. The sync logic under
+// test lives in SyncableFields and is entirely independent of BlockEntity.
+public class TestBlockEntity {
+  public EntityStateData serverState = new EntityStateData();
 
   @Syncable
   public int intValue = 1;
@@ -38,7 +39,11 @@ public class TestBlockEntity extends StatefulBlockEntity {
   @Syncable
   public BigInteger BigIntegerValue = new BigInteger("7");
 
-  public TestBlockEntity() {
-    super(TEST_BLOCK_ENTITY, new BlockPos(1, 2, 3), null, null);
+  public void setPropertiesToState() {
+    SyncableFields.collectFieldsToState(this, this.serverState);
+  }
+
+  public void getPropertiesFromState() {
+    SyncableFields.applyStateToFields(this, this.serverState);
   }
 }

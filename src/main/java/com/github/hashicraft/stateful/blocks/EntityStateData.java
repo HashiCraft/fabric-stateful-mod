@@ -6,8 +6,8 @@ import java.util.Hashtable;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 
 public class EntityStateData implements java.io.Serializable {
   public Hashtable<String, Object> data = new Hashtable<String, Object>();
@@ -27,7 +27,7 @@ public class EntityStateData implements java.io.Serializable {
     this.world = world;
   }
 
-  public EntityStateData(Hashtable<String, Object> data, BlockPos pos, RegistryKey world) {
+  public EntityStateData(Hashtable<String, Object> data, BlockPos pos, ResourceKey<?> world) {
     this.setRegistryKey(world);
     this.setBlockPos(pos);
     this.data = data;
@@ -39,8 +39,8 @@ public class EntityStateData implements java.io.Serializable {
     this.z = pos.getZ();
   }
 
-  public void setRegistryKey(RegistryKey world) {
-    this.world = world.getValue().toString();
+  public void setRegistryKey(ResourceKey<?> world) {
+    this.world = world.identifier().toString();
   }
 
   public byte[] toBytes() {
