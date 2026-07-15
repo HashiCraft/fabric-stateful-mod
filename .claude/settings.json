@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(~/.claude/skills/fabric-mod-upgrade/**)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/package_skill.py \"C:/Users/jacks/.claude/skills/fabric-mod-upgrade\" \"C:/Users/jacks/skills-dist\")"
+    ]
+  }
+}
