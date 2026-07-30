@@ -103,7 +103,10 @@ public class StatefulBlockEntity extends BlockEntity {
   public CompoundTag getUpdateTag(HolderLookup.Provider registryLookup) {
     CompoundTag nbt = saveCustomOnly(registryLookup);
 
-    toClientTag(nbt);
+    if (this.serverState != null) {
+      setPropertiesToState();
+      nbt.putString("serverState", java.util.Base64.getEncoder().encodeToString(this.serverState.toBytes()));
+    }
     return nbt;
   }
 
@@ -130,7 +133,13 @@ public class StatefulBlockEntity extends BlockEntity {
   }
 
   public void fromClientTag(CompoundTag tag) {
-    tag.getByteArray("serverState").ifPresent(this::applyStateBytes);
+    tag.getString("serverState").ifPresent(str -> {
+      try {
+        this.applyStateBytes(java.util.Base64.getDecoder().decode(str));
+      } catch (IllegalArgumentException e) {
+        LOGGER.error("Failed to decode base64 serverState", e);
+      }
+    });
   }
 
   public CompoundTag toClientTag(CompoundTag tag) {
